@@ -85,3 +85,8 @@ add_executable(d02p2 src/d02p2.cpp)
 target_add_warnings(d02p2)
 target_add_link_options(d02p2)
 target_link_libraries(d02p2 PRIVATE fmt::fmt utility)
+
+add_executable(d03p1 src/d03p1.cpp)
+target_add_warnings(d03p1)
+target_add_link_options(d03p1)
+target_link_libraries(d03p1 PRIVATE fmt::fmt utility)
