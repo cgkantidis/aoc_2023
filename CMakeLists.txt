@@ -1,6 +1,6 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.16..3.31.2)
 
-project(aoc_2023 VERSION 1.0.0 LANGUAGES CXX)
+project(aoc_2024 VERSION 1.0.0 LANGUAGES CXX)
 
 # set the C++ standard
 set(CMAKE_CXX_STANDARD 23)
@@ -15,7 +15,14 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/fmtlib/fmt.git
   OVERRIDE_FIND_PACKAGE
 )
+FetchContent_Declare(
+  libassert
+  GIT_REPOSITORY https://github.com/jeremy-rifkin/libassert.git
+  GIT_TAG main
+  OVERRIDE_FIND_PACKAGE
+)
 find_package(fmt REQUIRED)
+find_package(libassert REQUIRED)
 
 function(target_add_warnings target)
   # enable all warnings
@@ -64,53 +71,20 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_library(utility src/utility.cpp)
 target_add_warnings(utility)
-target_include_directories(utility PUBLIC include)
 
-add_executable(d01p1 src/d01p1.cpp)
-target_add_warnings(d01p1)
-target_add_link_options(d01p1)
-target_link_libraries(d01p1 PRIVATE fmt::fmt utility)
+function(add_aoc_target target)
+  add_executable(${target} src/${target}.cpp)
+  target_add_warnings(${target})
+  target_add_link_options(${target})
+  target_link_libraries(${target} PRIVATE fmt::fmt libassert::assert utility)
+endfunction()
 
-add_executable(d01p2 src/d01p2.cpp)
-target_add_warnings(d01p2)
-target_add_link_options(d01p2)
-target_link_libraries(d01p2 PRIVATE fmt::fmt utility)
-
-add_executable(d02p1 src/d02p1.cpp)
-target_add_warnings(d02p1)
-target_add_link_options(d02p1)
-target_link_libraries(d02p1 PRIVATE fmt::fmt utility)
-
-add_executable(d02p2 src/d02p2.cpp)
-target_add_warnings(d02p2)
-target_add_link_options(d02p2)
-target_link_libraries(d02p2 PRIVATE fmt::fmt utility)
-
-add_executable(d03p1 src/d03p1.cpp)
-target_add_warnings(d03p1)
-target_add_link_options(d03p1)
-target_link_libraries(d03p1 PRIVATE fmt::fmt utility)
-
-add_executable(d03p2 src/d03p2.cpp)
-target_add_warnings(d03p2)
-target_add_link_options(d03p2)
-target_link_libraries(d03p2 PRIVATE fmt::fmt utility)
-
-add_executable(d04p1 src/d04p1.cpp)
-target_add_warnings(d04p1)
-target_add_link_options(d04p1)
-target_link_libraries(d04p1 PRIVATE fmt::fmt utility)
-
-add_executable(d04p2 src/d04p2.cpp)
-target_add_warnings(d04p2)
-target_add_link_options(d04p2)
-target_link_libraries(d04p2 PRIVATE fmt::fmt utility)
-
-add_executable(d05p1 src/d05p1.cpp)
-target_add_warnings(d05p1)
-target_add_link_options(d05p1)
-target_link_libraries(d05p1 PRIVATE fmt::fmt utility)
-add_executable(d05p2 src/d05p2.cpp)
-target_add_warnings(d05p2)
-target_add_link_options(d05p2)
-target_link_libraries(d05p2 PRIVATE fmt::fmt utility)
+foreach(day RANGE 1 5)
+  foreach(part RANGE 1 2)
+    if (day LESS 10)
+      add_aoc_target(d0${day}p${part})
+    else()
+      add_aoc_target(d${day}p${part})
+    endif()
+  endforeach()
+endforeach()
