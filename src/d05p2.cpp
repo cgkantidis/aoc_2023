@@ -21,7 +21,7 @@ parse_seeds(std::ifstream &infile) {
   std::getline(infile, line);
   auto str_seeds = split(split(line, "seeds: ")[0]);
   std::vector<std::size_t> seeds;
-  std::ranges::transform(str_seeds, std::back_inserter(seeds), str_to_int);
+  std::ranges::transform(str_seeds, std::back_inserter(seeds), str_to_int<std::size_t>);
   std::getline(infile, line); // empty line
   return seeds;
 }
@@ -61,7 +61,7 @@ parse_mappings(std::ifstream &infile) {
         is_first = false;
         continue;
       }
-      auto tokens = split(line) | std::views::transform(str_to_int);
+      auto tokens = split(line) | std::views::transform(str_to_int<std::size_t>);
       map.emplace_back(tokens[0], tokens[1], tokens[2]);
     }
     std::ranges::sort(map, [](mapping const &left, mapping const &right) {

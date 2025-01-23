@@ -1,6 +1,3 @@
-#include <charconv>
-#include <utility> // unreachable
-
 #include "utility.hpp"
 
 bool
@@ -11,19 +8,6 @@ is_digit(char ch) {
 uint8_t
 char_to_int(char ch) {
   return static_cast<uint8_t>(ch - '0');
-}
-
-std::size_t
-str_to_int(std::string_view sv) {
-  std::size_t result{};
-  auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), result);
-
-  if (ec == std::errc()) {
-    return result;
-  }
-
-  std::unreachable();
-  return 0;
 }
 
 std::vector<std::string_view>
@@ -64,4 +48,19 @@ pow10(std::uint8_t exp) {
     val *= 10;
   }
   return val;
+}
+
+bool
+operator==(Location const &lhs, Location const &rhs) {
+  return lhs.row == rhs.row && lhs.col == rhs.col;
+}
+
+std::size_t
+std::hash<Location>::operator()(Location const &loc) const noexcept {
+  std::size_t h1 = std::hash<std::size_t>{}(loc.row);
+  std::size_t h2 = std::hash<std::size_t>{}(loc.col);
+
+  std::size_t ret_val = 0;
+  hash_combine(ret_val, h1, h2);
+  return ret_val;
 }

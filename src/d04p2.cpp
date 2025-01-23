@@ -27,9 +27,10 @@ main(int argc, char const **argv) {
     auto card_id_to_numbers = split(line, ": ");
     auto winning_and_have_numbers = split(card_id_to_numbers[1], " | ");
     auto winning_numbers =
-        std::views::transform(split(winning_and_have_numbers[0]), str_to_int);
-    auto have_numbers =
-        std::views::transform(split(winning_and_have_numbers[1]), str_to_int);
+        std::views::transform(split(winning_and_have_numbers[0]),
+                              str_to_int<std::size_t>);
+    auto have_numbers = std::views::transform(split(winning_and_have_numbers[1]),
+                                              str_to_int<std::size_t>);
     auto winning_numbers_set =
         std::set(winning_numbers.begin(), winning_numbers.end());
     auto have_numbers_set = std::set(have_numbers.begin(), have_numbers.end());

@@ -76,7 +76,7 @@ get_parts(std::vector<std::string> const &lines) {
         ++length;
       }
       if (is_part(lines, row, left_col, length)) {
-        parts[row].emplace_back(str_to_int(line.substr(left_col, length)),
+        parts[row].emplace_back(str_to_int<std::size_t>(line.substr(left_col, length)),
                                 left_col,
                                 length);
       }

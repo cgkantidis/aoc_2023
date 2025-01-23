@@ -71,10 +71,10 @@ parse_times_and_distances(std::ranges::range auto &&lines) {
   std::vector<std::uint64_t> distances;
   std::ranges::transform(split(split(lines[0], "Time:")[0], " "),
                          std::back_inserter(times),
-                         str_to_int);
+                         str_to_int<std::uint64_t>);
   std::ranges::transform(split(split(lines[1], "Distance:")[0], " "),
                          std::back_inserter(distances),
-                         str_to_int);
+                         str_to_int<std::uint64_t>);
   return {times, distances};
 }
 
