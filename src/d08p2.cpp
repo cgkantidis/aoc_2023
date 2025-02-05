@@ -1,9 +1,11 @@
+#include "utility.hpp"
 #include <algorithm> // std::ranges::all_of
 #include <array> // std::array
 #include <cstdint> // std::uint64_t
 #include <fmt/core.h> // fmt::print
 #include <fstream> // std::ifstream
 #include <libassert/assert.hpp> // ASSERT
+#include <numeric> // std::lcm
 #include <ranges> // std::views::enumerate
 #include <regex> // std::regex
 #include <string> // std::string
@@ -16,6 +18,31 @@ using desert_map_t =
     std::unordered_map<std::string, std::pair<std::string, std::string>>;
 using namespace std::literals::string_view_literals;
 
+struct State
+{
+  std::string name;
+  std::size_t idx;
+};
+
+bool
+operator==(State const &lhs, State const &rhs) {
+  return lhs.name == rhs.name && lhs.idx == rhs.idx;
+}
+
+template <>
+struct std::hash<State>
+{
+  std::size_t
+  operator()(State const &state) const noexcept {
+    std::size_t h1 = std::hash<std::string>{}(state.name);
+    std::size_t h2 = std::hash<std::size_t>{}(state.idx);
+
+    std::size_t ret_val = 0;
+    hash_combine(ret_val, h1, h2);
+    return ret_val;
+  }
+};
+
 namespace
 {
 void
@@ -27,8 +54,18 @@ parse_map(std::ranges::range auto &&lines);
 u64
 get_num_steps(std::vector<char> const &directions,
               desert_map_t const &desert_map);
+std::vector<std::vector<u64>>
+get_state_num_steps(std::vector<char> const &directions,
+                    desert_map_t const &desert_map,
+                    std::vector<std::string> const &states);
 bool
-is_finished(std::vector<std::string> const &states);
+advance_indices(std::vector<std::size_t> &indices,
+                std::vector<std::size_t> const &sizes);
+std::vector<u64>
+collect_states(std::vector<std::size_t> const &indices,
+               std::vector<std::vector<u64>> const &state_num_steps);
+u64
+lcm(std::vector<u64> &states);
 } // namespace
 
 int
@@ -116,26 +153,93 @@ get_num_steps(std::vector<char> const &directions,
     }
   }
 
-  u64 num_steps{};
-  auto const dir_size{directions.size()};
-  while (!is_finished(states)) {
-    for (std::string &state : states) {
+  std::vector<std::vector<u64>> state_num_steps =
+      get_state_num_steps(directions, desert_map, states);
+
+  std::vector<std::size_t> indices(state_num_steps.size());
+  std::vector<std::size_t> sizes(state_num_steps.size());
+  for (std::size_t idx = 0; idx < sizes.size(); ++idx) {
+    sizes[idx] = state_num_steps[idx].size();
+  }
+
+  u64 min_lcm = std::numeric_limits<u64>::max();
+  while (true) {
+    auto new_states = collect_states(indices, state_num_steps);
+    min_lcm = std::min(min_lcm, lcm(new_states));
+    if (!advance_indices(indices, sizes)) {
+      break;
+    }
+  }
+  return min_lcm;
+}
+
+std::vector<std::vector<u64>>
+get_state_num_steps(std::vector<char> const &directions,
+                    desert_map_t const &desert_map,
+                    std::vector<std::string> const &states) {
+  std::size_t const dir_size{directions.size()};
+  std::vector<std::vector<u64>> state_num_steps;
+  for (auto state : states) {
+    std::vector<u64> num_steps_vec;
+    u64 num_steps{};
+    std::unordered_set<State> visited;
+    while (true) {
       auto find_it = desert_map.find(state);
-      if (directions[num_steps % dir_size] == 'L') {
+      std::size_t idx = num_steps % dir_size;
+      char dir = directions[idx];
+
+      if (visited.contains({state, idx})) {
+        break;
+      }
+      visited.insert({state, idx});
+
+      // if we reached a final state, mark the number of steps
+      if (state.back() == 'Z') {
+        num_steps_vec.emplace_back(num_steps);
+      }
+
+      // advance state
+      if (dir == 'L') {
         state = find_it->second.first;
       } else {
         state = find_it->second.second;
       }
+      ++num_steps;
     }
-    ++num_steps;
+    state_num_steps.emplace_back(std::move(num_steps_vec));
   }
-  return num_steps;
+  return state_num_steps;
 }
 
 bool
-is_finished(std::vector<std::string> const &states) {
-  return std::ranges::all_of(states, [](std::string const &state) {
-    return state.back() == 'Z';
-  });
+advance_indices(std::vector<std::size_t> &indices,
+                std::vector<std::size_t> const &sizes) {
+  for (std::size_t idx = 0; idx < indices.size(); ++idx) {
+    if (indices[idx] + 1 < sizes[idx]) {
+      ++indices[idx];
+      return true;
+    }
+    indices[idx] = (indices[idx] + 1) % sizes[idx];
+  }
+  return false;
+}
+
+std::vector<u64>
+collect_states(std::vector<std::size_t> const &indices,
+               std::vector<std::vector<u64>> const &state_num_steps) {
+  std::vector<u64> ret(indices.size());
+  for (std::size_t idx = 0; idx < indices.size(); ++idx) {
+    ret[idx] = state_num_steps[idx][indices[idx]];
+  }
+  return ret;
+};
+
+u64
+lcm(std::vector<u64> &states) {
+  u64 ret = std::lcm(states[0], states[1]);
+  for (std::size_t idx = 2; idx < states.size(); ++idx) {
+    ret = std::lcm(ret, states[idx]);
+  }
+  return ret;
 }
 } // namespace
