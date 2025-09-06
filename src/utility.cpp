@@ -1,4 +1,7 @@
 #include "utility.hpp"
+#include <fstream> // std::ifstream
+#include <print> // std::println
+#include <vector> // std::vector
 
 bool
 is_digit(char ch) {
@@ -63,4 +66,25 @@ std::hash<Location>::operator()(Location const &loc) const noexcept {
   std::size_t ret_val = 0;
   hash_combine(ret_val, h1, h2);
   return ret_val;
+}
+
+std::vector<std::string>
+read_program_input(int argc, char const * const *argv) {
+  auto args = std::span(argv, size_t(argc));
+  if (args.size() != 2) {
+    std::println(stderr, "usage: {} input.txt", args[0]);
+    return {};
+  }
+
+  std::ifstream infile(args[1]);
+  if (!infile.is_open()) {
+    std::println(stderr, "couldn't open file {}", args[1]);
+    return {};
+  }
+
+  std::vector<std::string> lines;
+  for (std::string line; std::getline(infile, line);) {
+    lines.emplace_back(std::move(line));
+  }
+  return lines;
 }

@@ -85,4 +85,7 @@ struct std::hash<std::pair<T, U>>
   }
 };
 
+std::vector<std::string>
+read_program_input(int argc, char const * const *argv);
+
 #endif // UTILITY_HPP
