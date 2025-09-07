@@ -25,8 +25,6 @@ void
 tests();
 u64
 get_min_location_for_seeds(std::vector<std::string> const &lines);
-std::vector<range>
-tranform_range_by_mapping(range const &r, std::vector<mapping> const &mappings);
 std::vector<std::span<std::string const>>
 get_blocks(std::vector<std::string> const &lines);
 std::vector<range>
@@ -35,6 +33,12 @@ std::vector<std::vector<mapping>>
 get_mappings(std::vector<std::span<std::string const>> const &blocks);
 std::vector<mapping>
 parse_map(std::span<std::string const> lines);
+std::vector<range>
+tranform_range_by_mapping(range const &r, std::vector<mapping> const &mappings);
+bool
+is_overlapping(range const &r, mapping const &m);
+range
+convert(range const &r, mapping const &m);
 } // namespace
 
 int
@@ -105,56 +109,6 @@ get_min_location_for_seeds(std::vector<std::string> const &lines) {
       .src;
 }
 
-range
-convert(range const &r, mapping const &m) {
-  u64 src = std::max(r.src, m.src);
-  u64 sz = std::min(r.dst, m.src + m.sz) - src;
-  return {.src = src + m.dst - m.src, .dst = src + sz + m.dst - m.src, .sz = sz};
-}
-
-bool
-is_overlapping(range const &r, mapping const &m) {
-  return r.dst > m.src && r.src < m.src + m.sz;
-};
-
-std::vector<range>
-tranform_range_by_mapping(range const &r, std::vector<mapping> const &mappings) {
-  auto const overlapping_mappings =
-      std::views::filter(mappings,
-                         [&r](mapping const &m) { return is_overlapping(r, m); })
-      | std::ranges::to<std::vector<mapping>>();
-
-  std::vector<range> new_ranges;
-  for (auto const &[idx, m] : std::views::enumerate(overlapping_mappings)) {
-    if (idx == 0) {
-      // see if there is a left trailing part only for the first
-      // any possible right trailing part will be handled later
-      if (r.src < m.src) {
-        u64 left_sz = m.src - r.src;
-        new_ranges.emplace_back(r.src, r.src + left_sz, left_sz);
-      }
-    }
-    new_ranges.emplace_back(convert(r, m));
-
-    if (r.dst <= m.src + m.sz) {
-      continue;
-    }
-    u64 src = m.src + m.sz;
-    u64 sz = static_cast<u64>(idx) == overlapping_mappings.size() - 1
-                 ? r.dst - src
-                 : std::min(r.dst - src,
-                            overlapping_mappings[static_cast<u64>(idx) + 1].src
-                                - m.src - m.sz);
-    new_ranges.emplace_back(src, src + sz, sz);
-  }
-
-  if (new_ranges.empty()) {
-    return {r};
-  }
-
-  return new_ranges;
-}
-
 std::vector<std::span<std::string const>>
 get_blocks(std::vector<std::string> const &lines) {
   std::vector<std::span<std::string const>> spans;
@@ -202,5 +156,55 @@ parse_map(std::span<std::string const> lines) {
   });
 
   return map;
+}
+
+std::vector<range>
+tranform_range_by_mapping(range const &r, std::vector<mapping> const &mappings) {
+  auto const overlapping_mappings =
+      std::views::filter(mappings,
+                         [&r](mapping const &m) { return is_overlapping(r, m); })
+      | std::ranges::to<std::vector<mapping>>();
+
+  std::vector<range> new_ranges;
+  for (auto const &[idx, m] : std::views::enumerate(overlapping_mappings)) {
+    if (idx == 0) {
+      // see if there is a left trailing part only for the first
+      // any possible right trailing part will be handled later
+      if (r.src < m.src) {
+        u64 left_sz = m.src - r.src;
+        new_ranges.emplace_back(r.src, r.src + left_sz, left_sz);
+      }
+    }
+    new_ranges.emplace_back(convert(r, m));
+
+    if (r.dst <= m.src + m.sz) {
+      continue;
+    }
+    u64 src = m.src + m.sz;
+    u64 sz = static_cast<u64>(idx) == overlapping_mappings.size() - 1
+                 ? r.dst - src
+                 : std::min(r.dst - src,
+                            overlapping_mappings[static_cast<u64>(idx) + 1].src
+                                - m.src - m.sz);
+    new_ranges.emplace_back(src, src + sz, sz);
+  }
+
+  if (new_ranges.empty()) {
+    return {r};
+  }
+
+  return new_ranges;
+}
+
+bool
+is_overlapping(range const &r, mapping const &m) {
+  return r.dst > m.src && r.src < m.src + m.sz;
+};
+
+range
+convert(range const &r, mapping const &m) {
+  u64 src = std::max(r.src, m.src);
+  u64 sz = std::min(r.dst, m.src + m.sz) - src;
+  return {.src = src + m.dst - m.src, .dst = src + sz + m.dst - m.src, .sz = sz};
 }
 } // namespace
