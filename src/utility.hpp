@@ -7,6 +7,8 @@
 #include <string_view> // std::string_view
 #include <vector> // std::vector
 
+using u64 = std::uint64_t;
+
 bool
 is_digit(char ch);
 
@@ -36,9 +38,9 @@ append_range(std::vector<T> &dst, std::vector<T> const &src) {
 }
 
 std::uint8_t
-get_num_digits(std::uint64_t num);
+get_num_digits(u64 num);
 
-std::uint64_t
+u64
 pow10(std::uint8_t exp);
 
 struct Location

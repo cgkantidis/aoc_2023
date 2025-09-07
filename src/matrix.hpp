@@ -1,11 +1,11 @@
 #ifndef MATRIX_HPP
 #define MATRIX_HPP
 
-#include "fmt/core.h" // fmt::print
 #include "libassert/assert.hpp"
 #include "utility.hpp" // Location
 #include <algorithm> // std::copy_n
 #include <cstdint> // std::size_t
+#include <print>
 
 template <typename T>
 class Matrix
@@ -118,9 +118,9 @@ public:
   print() const {
     for (std::size_t row = 0; row < m_rows; ++row) {
       for (std::size_t col = 0; col < m_cols; ++col) {
-        fmt::print("{}", (*this)(row, col));
+        std::print("{}", (*this)(row, col));
       }
-      fmt::println("");
+      std::println("");
     }
   }
 

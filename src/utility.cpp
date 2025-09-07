@@ -32,7 +32,7 @@ split(std::string_view sv, std::string_view delim) {
 }
 
 std::uint8_t
-get_num_digits(std::uint64_t num) {
+get_num_digits(u64 num) {
   if (num == 0) {
     return 1;
   }
@@ -44,9 +44,9 @@ get_num_digits(std::uint64_t num) {
   return num_digits;
 }
 
-std::uint64_t
+u64
 pow10(std::uint8_t exp) {
-  std::uint64_t val{1};
+  u64 val{1};
   for (std::uint8_t i{0}; i < exp; ++i) {
     val *= 10;
   }
