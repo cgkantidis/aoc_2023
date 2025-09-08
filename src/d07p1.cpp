@@ -1,16 +1,11 @@
 #include "utility.hpp"
-#include <algorithm>
-#include <array> // std::array
-#include <cstdint> // std::uint64_t
-#include <fmt/core.h> // fmt::print
-#include <fstream> // std::ifstream
-#include <libassert/assert.hpp> // ASSERT
-#include <ranges> // std::views::enumerate
-#include <string> // std::string
-#include <unordered_map>
-#include <vector> // std::vector
 
-enum HandType : std::uint8_t
+#include <algorithm> // std::ranges::sort
+#include <print> // std::println
+#include <ranges> // std::views::zip
+#include <unordered_map> // std::unordered_map
+
+enum HandType : u8
 {
   HIGH_CARD,
   ONE_PAIR,
@@ -24,56 +19,39 @@ enum HandType : std::uint8_t
 struct Hand
 {
   std::string cards;
-  long bid;
+  u64 bid;
   HandType type;
 };
 
-static std::unordered_map<char, std::uint8_t> CARD_VALUE{{'A', 12},
-                                                         {'K', 11},
-                                                         {'Q', 10},
-                                                         {'J', 9},
-                                                         {'T', 8},
-                                                         {'9', 7},
-                                                         {'8', 6},
-                                                         {'7', 5},
-                                                         {'6', 4},
-                                                         {'5', 3},
-                                                         {'4', 2},
-                                                         {'3', 1},
-                                                         {'2', 0}};
+static const std::unordered_map<char, u8> CARD_VALUE{{'A', 12},
+                                                     {'K', 11},
+                                                     {'Q', 10},
+                                                     {'J', 9},
+                                                     {'T', 8},
+                                                     {'9', 7},
+                                                     {'8', 6},
+                                                     {'7', 5},
+                                                     {'6', 4},
+                                                     {'5', 3},
+                                                     {'4', 2},
+                                                     {'3', 1},
+                                                     {'2', 0}};
 
 namespace
 {
 void
 tests();
-long
-get_answer(std::ranges::range auto &&lines);
+u64
+get_total_winnings(std::vector<std::string> const &lines);
 HandType
 get_hand_type(std::string_view hand);
 } // namespace
 
 int
-main(int argc, char const *const *argv) {
+main(int argc, char const **argv) {
   tests();
-
-  auto args = std::span(argv, size_t(argc));
-  if (args.size() != 2) {
-    fmt::println(stderr, "usage: {} input.txt", args[0]);
-    return 1;
-  }
-
-  std::ifstream infile(args[1]);
-  if (!infile.is_open()) {
-    fmt::println(stderr, "couldn't open file {}", args[1]);
-    return 2;
-  }
-
-  std::vector<std::string> lines;
-  for (std::string line; std::getline(infile, line);) {
-    lines.emplace_back(std::move(line));
-  }
-
-  fmt::println("{}", get_answer(lines));
+  std::vector<std::string> lines = read_program_input(argc, argv);
+  std::println("{}", get_total_winnings(lines));
   return 0;
 }
 
@@ -82,20 +60,18 @@ namespace
 void
 tests() {
   using namespace std::literals::string_view_literals;
-  {
-    auto const lines = std::array{
-        "32T3K 765"sv,
-        "T55J5 684"sv,
-        "KK677 28"sv,
-        "KTJJT 220"sv,
-        "QQQJA 483"sv,
-    };
-    ASSERT(get_answer(lines) == 6440);
-  }
+  std::vector<std::string> const lines{
+      "32T3K 765",
+      "T55J5 684",
+      "KK677 28",
+      "KTJJT 220",
+      "QQQJA 483",
+  };
+  ASSERT(get_total_winnings(lines) == 6440);
 }
 
-long
-get_answer(std::ranges::range auto &&lines) {
+u64
+get_total_winnings(std::vector<std::string> const &lines) {
   std::vector<Hand> hands;
   for (auto const &line : lines) {
     auto tokens = split(line);
@@ -108,7 +84,7 @@ get_answer(std::ranges::range auto &&lines) {
     if (lhs.type == rhs.type) {
       for (auto const &[l, r] : std::views::zip(lhs.cards, rhs.cards)) {
         if (l != r) {
-          return CARD_VALUE[l] < CARD_VALUE[r];
+          return CARD_VALUE.at(l) < CARD_VALUE.at(r);
         }
       }
     }
@@ -117,15 +93,17 @@ get_answer(std::ranges::range auto &&lines) {
 
   return std::ranges::fold_left(
       std::views::enumerate(hands),
-      0LL,
+      0ULL,
       [](auto const &prev, auto const &idx_hand) {
-        return prev + ((std::get<0>(idx_hand) + 1) * std::get<1>(idx_hand).bid);
+        return prev
+               + ((static_cast<u64>(std::get<0>(idx_hand)) + 1)
+                  * std::get<1>(idx_hand).bid);
       });
 }
 
 HandType
 get_hand_type(std::string_view hand) {
-  std::unordered_map<char, std::uint8_t> counter;
+  std::unordered_map<char, u8> counter;
   for (char c : hand) {
     auto find_it = counter.find(c);
     if (find_it == counter.end()) {
@@ -135,7 +113,7 @@ get_hand_type(std::string_view hand) {
     }
   }
 
-  std::vector<std::pair<char, std::uint8_t>> counter_vec;
+  std::vector<std::pair<char, u8>> counter_vec;
   counter_vec.reserve(counter.size());
   for (auto const &[k, v] : counter) {
     counter_vec.emplace_back(k, v);
