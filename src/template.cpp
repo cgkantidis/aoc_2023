@@ -7,7 +7,7 @@ namespace
 void
 tests();
 u64
-get_num_lines(std::ranges::range auto &&lines);
+get_num_lines(std::vector<std::string> const &lines);
 } // namespace
 
 int
@@ -23,15 +23,15 @@ namespace
 void
 tests() {
   using namespace std::literals::string_view_literals;
-  auto const lines = std::array{
-      "line1"sv,
-      "line2"sv,
+  std::vector<std::string> const lines{
+      "line1",
+      "line2",
   };
   ASSERT(get_num_lines(lines) == 2);
 }
 
 u64
-get_num_lines(std::ranges::range auto &&lines) {
+get_num_lines(std::vector<std::string> const &lines) {
   return lines.size();
 }
 } // namespace
