@@ -1,68 +1,56 @@
-#include "fmt/core.h"
-#include "fmt/ranges.h"
-#include "libassert/assert.hpp"
-#include <algorithm>
-#include <cstdint>
-#include <fstream>
-#include <ranges>
-#include <string>
-#include <string_view>
-#include <utility>
-
 #include "utility.hpp"
 
-static void
+#include <print> // std::println
+#include <ranges> // std::views::zip
+
+namespace
+{
+void
 tests();
-static std::pair<std::uint64_t, std::uint64_t>
-parse_time_and_distance(std::ranges::range auto &&lines);
-std::uint64_t
-num_ways_to_win(std::ranges::range auto &&lines);
+u64
+get_prod_of_num_ways_to_win(std::vector<std::string> const &lines);
+static std::pair<u64, u64>
+parse_time_and_distance(std::vector<std::string> const &lines);
+u64
+num_ways_to_win(u64 const time, u64 const distance);
+} // namespace
 
 int
-main(int argc, char const *const *argv) {
+main(int argc, char const **argv) {
   tests();
-
-  auto args = std::span(argv, size_t(argc));
-  if (args.size() != 2) {
-    fmt::println(stderr, "usage: {} input.txt", args[0]);
-    return 1;
-  }
-
-  std::ifstream infile(args[1]);
-  if (!infile.is_open()) {
-    fmt::println(stderr, "couldn't open file {}", args[1]);
-    return 2;
-  }
-
-  std::vector<std::string> lines;
-  for (std::string line; std::getline(infile, line);) {
-    lines.emplace_back(std::move(line));
-  }
-
-  fmt::println("{}", num_ways_to_win(lines));
+  std::vector<std::string> lines = read_program_input(argc, argv);
+  std::println("{}", get_prod_of_num_ways_to_win(lines));
   return 0;
 }
 
+namespace
+{
 void
 tests() {
   using namespace std::literals::string_view_literals;
-  auto lines = std::vector{{
-      "Time:      7  15   30"sv,
-      "Distance:  9  40  200"sv,
-  }};
-  ASSERT(num_ways_to_win(lines) == 71503);
+  std::vector<std::string> const lines{
+      "Time:      7  15   30",
+      "Distance:  9  40  200",
+  };
+  ASSERT(get_prod_of_num_ways_to_win(lines) == 71503);
+}
+
+u64
+get_prod_of_num_ways_to_win(std::vector<std::string> const &lines) {
+  auto [time, distance] = parse_time_and_distance(lines);
+  return num_ways_to_win(time, distance);
 }
 
 std::pair<std::uint64_t, std::uint64_t>
-parse_time_and_distance(std::ranges::range auto &&lines) {
-  std::vector<std::uint64_t> times;
-  std::vector<std::uint64_t> distances;
-  std::ranges::transform(split(split(lines[0], "Time:")[0], " "),
-                         std::back_inserter(times),
-                         str_to_int<std::uint64_t>);
-  std::ranges::transform(split(split(lines[1], "Distance:")[0], " "),
-                         std::back_inserter(distances),
-                         str_to_int<std::uint64_t>);
+parse_time_and_distance(std::vector<std::string> const &lines) {
+  std::vector<std::uint64_t> times = split(split(lines[0], "Time:")[0], " ")
+                                     | std::views::transform(str_to_int<u64>)
+                                     | std::ranges::to<std::vector>();
+
+  std::vector<std::uint64_t> distances =
+      split(split(lines[1], "Distance:")[0], " ")
+      | std::views::transform(str_to_int<u64>) | std::ranges::to<std::vector>();
+
   std::uint64_t time{times[0]};
   std::uint64_t distance{distances[0]};
   for (std::size_t idx{1}; idx < times.size(); ++idx) {
@@ -72,14 +60,14 @@ parse_time_and_distance(std::ranges::range auto &&lines) {
   return {time, distance};
 }
 
-std::uint64_t
-num_ways_to_win(std::ranges::range auto &&lines) {
-  auto [time, distance] = parse_time_and_distance(lines);
-  std::uint64_t num_ways{};
-  for (std::uint64_t t{1}; t < time; ++t) {
+u64
+num_ways_to_win(u64 const time, u64 const distance) {
+  u64 num_ways{};
+  for (u64 t{1}; t < time; ++t) {
     if (t * (time - t) > distance) {
       ++num_ways;
     }
   }
   return num_ways;
 }
+} // namespace
