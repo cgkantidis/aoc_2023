@@ -22,7 +22,6 @@ namespace
 {
 void
 tests() {
-  using namespace std::literals::string_view_literals;
   std::vector<std::string> const lines{
       "line1",
       "line2",
