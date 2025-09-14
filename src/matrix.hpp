@@ -129,4 +129,23 @@ public:
   }
 };
 
+template<typename T>
+bool
+operator==(Matrix<T> const &matrix1, Matrix<T> const &matrix2) {
+  if (matrix1.rows() != matrix2.rows()) {
+    return false;
+  }
+  if (matrix1.cols() != matrix2.cols()) {
+    return false;
+  }
+  for (u64 row = 0; row < matrix1.rows(); ++row) {
+    for (u64 col = 0; col < matrix1.cols(); ++col) {
+      if (matrix1(row, col) != matrix2(row, col)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 #endif
