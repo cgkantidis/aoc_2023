@@ -50,6 +50,19 @@ struct Location
   std::size_t col;
 };
 
+enum Dir : std::uint8_t
+{
+  UP,
+  LEFT,
+  DOWN,
+  RIGHT
+};
+
+static constexpr std::initializer_list<Dir> ALL_DIRS{Dir::UP,
+                                                     Dir::LEFT,
+                                                     Dir::DOWN,
+                                                     Dir::RIGHT};
+
 /// we need the operator==() to resolve hash collisions
 bool
 operator==(Location const &lhs, Location const &rhs);

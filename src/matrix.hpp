@@ -1,10 +1,9 @@
 #ifndef MATRIX_HPP
 #define MATRIX_HPP
 
-#include "libassert/assert.hpp"
 #include "utility.hpp" // Location
 #include <algorithm> // std::copy_n
-#include <cstdint> // std::size_t
+#include <libassert/assert.hpp>
 #include <print>
 
 template <typename T>
