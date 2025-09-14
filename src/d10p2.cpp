@@ -3,7 +3,6 @@
 
 #include <print> // std::println
 #include <ranges>
-#include <stack> // std::stack
 #include <unordered_set> // std::unordered_set
 
 using Map = Matrix<char>;
@@ -19,13 +18,17 @@ parse_map(std::vector<std::string> const &lines);
 std::vector<Location>
 get_loop(Location const &start, Map const &map);
 bool
-is_loop_clockwise(std::vector<Location> const &loop);
-bool
 advance_path(std::vector<Location> &path, Map const &map);
 bool
 is_transition_valid(Map const &map, Location const &src, Location const &dst);
 void
-flood_char(Map &map, char ch);
+update_map_start(Map &map, std::vector<Location> const &loop);
+Dir
+get_direction(Location const &src, Location const &dst);
+void
+mark_by_ray_tracing(Map &map);
+void
+print_map(Map const &map);
 } // namespace
 
 int
@@ -100,222 +103,18 @@ tests() {
   }
 }
 
-void
-print_map(Map const &map) {
-  for (std::size_t row = 0; row < map.rows(); ++row) {
-    bool all_dot = true;
-    for (u64 col = 0; col < map.cols(); ++col) {
-      if (map(row, col) != '.') {
-        all_dot = false;
-        break;
-      }
-    }
-    if (all_dot) {
-      continue;
-    }
-    for (std::size_t col = 0; col < map.cols(); ++col) {
-      std::print("{}", map(row, col));
-    }
-    std::println();
-  }
-  std::println();
-}
-
-bool
-mark_horizontal_right(Map &clean_map, std::ranges::viewable_range auto &&win) {
-  bool const going_right =
-      win[0].col + 1 == win[1].col && win[1].col + 1 == win[2].col;
-  if (!going_right) {
-    return false;
-  }
-  u64 const num_rows = clean_map.rows();
-  if (win[1].row > 0) {
-    auto &tile_up = clean_map(win[1].row - 1, win[1].col);
-    if (tile_up == '.') {
-      tile_up = 'O';
-    }
-  }
-  if (win[1].row < num_rows - 1) {
-    auto &tile_down = clean_map(win[1].row + 1, win[1].col);
-    if (tile_down == '.') {
-      tile_down = 'I';
-    }
-  }
-  return true;
-}
-
-bool
-mark_horizontal_left(Map &clean_map, std::ranges::viewable_range auto &&win) {
-  bool const going_left =
-      win[0].col == win[1].col + 1 && win[1].col == win[2].col + 1;
-  if (!going_left) {
-    return false;
-  }
-  u64 const num_rows = clean_map.rows();
-  if (win[1].row > 0) {
-    auto &tile_up = clean_map(win[1].row - 1, win[1].col);
-    if (tile_up == '.') {
-      tile_up = 'I';
-    }
-  }
-  if (win[1].row < num_rows - 1) {
-    auto &tile_down = clean_map(win[1].row + 1, win[1].col);
-    if (tile_down == '.') {
-      tile_down = 'O';
-    }
-  }
-  return true;
-}
-
-bool
-mark_vertical_down(Map &clean_map, std::ranges::viewable_range auto &&win) {
-  bool const going_down =
-      win[0].row + 1 == win[1].row && win[1].row + 1 == win[2].row;
-  if (!going_down) {
-    return false;
-  }
-  u64 const num_cols = clean_map.cols();
-  if (win[1].col > 0) {
-    auto &tile_left = clean_map(win[1].row, win[1].col - 1);
-    if (tile_left == '.') {
-      tile_left = 'I';
-    }
-  }
-  if (win[1].col < num_cols - 1) {
-    auto &tile_right = clean_map(win[1].row, win[1].col + 1);
-    if (tile_right == '.') {
-      tile_right = 'O';
-    }
-  }
-  return true;
-}
-
-bool
-mark_vertical_up(Map &clean_map, std::ranges::viewable_range auto &&win) {
-  bool const going_up =
-      win[0].row == win[1].row + 1 && win[1].row == win[2].row + 1;
-  if (!going_up) {
-    return false;
-  }
-  u64 const num_cols = clean_map.cols();
-  if (win[1].col > 0) {
-    auto &tile_left = clean_map(win[1].row, win[1].col - 1);
-    if (tile_left == '.') {
-      tile_left = 'O';
-    }
-  }
-  if (win[1].col < num_cols - 1) {
-    auto &tile_right = clean_map(win[1].row, win[1].col + 1);
-    if (tile_right == '.') {
-      tile_right = 'I';
-    }
-  }
-  return true;
-}
-
-bool
-mark_south_east(Map &clean_map, std::ranges::viewable_range auto &&win) {
-  bool const going_south_to_east =
-      win[0].row == win[1].row + 1 && win[1].row == win[2].row
-      && win[0].col == win[1].col && win[1].col + 1 == win[2].col;
-  bool const going_east_to_south =
-      win[0].row == win[1].row && win[1].row + 1 == win[2].row
-      && win[0].col == win[1].col + 1 && win[1].col == win[2].col;
-  if (!(going_south_to_east || going_east_to_south)) {
-    return false;
-  }
-  char const ch1 = going_south_to_east ? 'O' : 'I';
-  char const ch2 = going_south_to_east ? 'I' : 'O';
-
-  if (win[1].row > 0) {
-    auto &tile_up = clean_map(win[1].row - 1, win[1].col);
-    if (tile_up == '.') {
-      tile_up = ch1;
-    }
-  }
-  if (win[1].col > 0) {
-    auto &tile_left = clean_map(win[1].row, win[1].col - 1);
-    if (tile_left == '.') {
-      tile_left = ch1;
-    }
-  }
-  if (win[1].row > 0 && win[1].col > 0) {
-    auto &tile_up_left = clean_map(win[1].row - 1, win[1].col - 1);
-    if (tile_up_left == '.') {
-      tile_up_left = ch1;
-    }
-  }
-  auto &tile_down_right = clean_map(win[1].row + 1, win[1].col + 1);
-  if (tile_down_right == '.') {
-    tile_down_right = ch2;
-  }
-
-  return true;
-}
-
-bool
-mark_south_west(Map &clean_map, std::ranges::viewable_range auto &&win) {
-  bool const going_south_to_west =
-      win[0].row == win[1].row + 1 && win[1].row == win[2].row
-      && win[0].col == win[1].col && win[1].col == win[2].col + 1;
-  bool const going_west_to_south =
-      win[0].row == win[1].row && win[1].row + 1 == win[2].row
-      && win[0].col + 1 == win[1].col && win[1].col == win[2].col;
-  if (!(going_south_to_west || going_west_to_south)) {
-    return false;
-  }
-  char const ch1 = going_west_to_south ? 'O' : 'I';
-  char const ch2 = going_west_to_south ? 'I' : 'O';
-  u64 const num_cols = clean_map.cols();
-
-  if (win[1].row > 0) {
-    auto &tile_up = clean_map(win[1].row - 1, win[1].col);
-    if (tile_up == '.') {
-      tile_up = ch1;
-    }
-  }
-  if (win[1].col < num_cols - 1) {
-    auto &tile_right = clean_map(win[1].row, win[1].col + 1);
-    if (tile_right == '.') {
-      tile_right = ch1;
-    }
-  }
-  if (win[1].row > 0 && win[1].col < num_cols - 1) {
-    auto &tile_up_right = clean_map(win[1].row - 1, win[1].col + 1);
-    if (tile_up_right == '.') {
-      tile_up_right = ch1;
-    }
-  }
-  auto &tile_down_left = clean_map(win[1].row + 1, win[1].col - 1);
-  if (tile_down_left == '.') {
-    tile_down_left = ch2;
-  }
-
-  return true;
-}
-
 u64
 get_num_tiles_inside_loop(std::vector<std::string> const &lines) {
   auto const [start, map] = parse_map(lines);
   auto loop_path = get_loop(start, map);
-  if (!is_loop_clockwise(loop_path)) {
-    loop_path = std::views::reverse(loop_path)
-                | std::ranges::to<std::vector<Location>>();
-  }
 
   Map clean_map(map.rows(), map.cols(), '.');
   for (auto const &loc : loop_path) {
     clean_map(loc.row, loc.col) = lines[loc.row][loc.col];
   }
+  update_map_start(clean_map, loop_path);
 
-  for (auto const &win : std::views::slide(loop_path, 3)) {
-    mark_horizontal_right(clean_map, win) || mark_horizontal_left(clean_map, win)
-        || mark_vertical_down(clean_map, win) || mark_vertical_up(clean_map, win)
-        || mark_south_east(clean_map, win) || mark_south_west(clean_map, win);
-  }
-  print_map(clean_map);
-  flood_char(clean_map, 'I');
-  flood_char(clean_map, 'O');
+  mark_by_ray_tracing(clean_map);
   print_map(clean_map);
 
   u64 num_tiles{};
@@ -327,6 +126,28 @@ get_num_tiles_inside_loop(std::vector<std::string> const &lines) {
     }
   }
   return num_tiles;
+}
+
+std::pair<Location, Map>
+parse_map(std::vector<std::string> const &lines) {
+  std::size_t num_rows = lines.size();
+  std::size_t num_cols = lines[0].size();
+  Map map(num_rows, num_cols);
+  Location start{};
+
+  for (auto const &[row_, line] : std::views::enumerate(lines)) {
+    for (auto const &[col_, ch] : std::views::enumerate(line)) {
+      auto row = static_cast<u64>(row_);
+      auto col = static_cast<u64>(col_);
+
+      if (ch == 'S') {
+        start = {.row = row, .col = col};
+      }
+      map(row, col) = ch;
+    }
+  }
+
+  return {start, map};
 }
 
 std::vector<Location>
@@ -359,50 +180,6 @@ get_loop(Location const &start, Map const &map) {
     }
   }
   UNREACHABLE();
-}
-
-bool
-is_loop_clockwise(std::vector<Location> const &loop) {
-  // find the topmost tile in the loop
-  auto topmost_row = std::numeric_limits<u64>::max();
-  long top_row_idx = 0;
-  for (auto const &[idx, loc] : std::views::enumerate(loop)) {
-    if (loc.row < topmost_row) {
-      topmost_row = loc.row;
-      top_row_idx = idx;
-    }
-  }
-
-  auto const &loc0 =
-      loop[top_row_idx > 0 ? static_cast<u64>(top_row_idx) - 1 : loop.size() - 2];
-  auto const &loc2 = loop[static_cast<u64>(top_row_idx) < loop.size() - 2
-                              ? static_cast<u64>(top_row_idx) + 1
-                              : 0];
-
-  // it has to be a corner
-  return loc2.col > loc0.col;
-}
-
-std::pair<Location, Map>
-parse_map(std::vector<std::string> const &lines) {
-  std::size_t num_rows = lines.size();
-  std::size_t num_cols = lines[0].size();
-  Map map(num_rows, num_cols);
-  Location start{};
-
-  for (auto const &[row_, line] : std::views::enumerate(lines)) {
-    for (auto const &[col_, ch] : std::views::enumerate(line)) {
-      auto row = static_cast<u64>(row_);
-      auto col = static_cast<u64>(col_);
-
-      if (ch == 'S') {
-        start = {.row = row, .col = col};
-      }
-      map(row, col) = ch;
-    }
-  }
-
-  return {start, map};
 }
 
 bool
@@ -457,42 +234,106 @@ is_transition_valid(Map const &map, Location const &src, Location const &dst) {
 }
 
 void
-flood_char(Map &map, char ch) {
-  std::unordered_set<Location> visited;
-  std::stack<Location> to_visit;
+update_map_start(Map &map, std::vector<Location> const &loop) {
+  Location const &prev = loop[loop.size() - 2];
+  Location const &strt = loop[0];
+  Location const &next = loop[1];
+  std::pair<Dir, Dir> dirs{get_direction(prev, strt), get_direction(strt, next)};
+  if (dirs == std::pair{Dir::UP, Dir::RIGHT}
+      || dirs == std::pair{Dir::LEFT, Dir::DOWN}) {
+    map(strt.row, strt.col) = 'F';
+    return;
+  }
+  if (dirs == std::pair{Dir::UP, Dir::LEFT}
+      || dirs == std::pair{Dir::RIGHT, Dir::DOWN}) {
+    map(strt.row, strt.col) = '7';
+    return;
+  }
+  if (dirs == std::pair{Dir::DOWN, Dir::LEFT}
+      || dirs == std::pair{Dir::RIGHT, Dir::UP}) {
+    map(strt.row, strt.col) = 'J';
+    return;
+  }
+  if (dirs == std::pair{Dir::DOWN, Dir::RIGHT}
+      || dirs == std::pair{Dir::LEFT, Dir::UP}) {
+    map(strt.row, strt.col) = 'L';
+    return;
+  }
+  UNREACHABLE();
+}
+
+Dir
+get_direction(Location const &src, Location const &dst) {
+  if (src.row == dst.row + 1) {
+    return Dir::UP;
+  }
+  if (src.row + 1 == dst.row) {
+    return Dir::DOWN;
+  }
+  if (src.col == dst.col + 1) {
+    return Dir::LEFT;
+  }
+  if (src.col + 1 == dst.col) {
+    return Dir::RIGHT;
+  }
+  UNREACHABLE();
+}
+
+void
+mark_by_ray_tracing(Map &map) {
   for (u64 row = 0; row < map.rows(); ++row) {
+    bool is_inside = false;
+    bool down_detected = false;
+    bool up_detected = false;
     for (u64 col = 0; col < map.cols(); ++col) {
-      if (map(row, col) == ch) {
-        visited.emplace(row, col);
-        to_visit.emplace(row, col);
+      if (map(row, col) == 'F' || map(row, col) == '7') {
+        if (up_detected) {
+          is_inside = !is_inside;
+          down_detected = false;
+          up_detected = false;
+        } else if (down_detected) {
+          down_detected = false;
+        } else {
+          down_detected = true;
+        }
+      } else if (map(row, col) == 'J' || map(row, col) == 'L') {
+        if (down_detected) {
+          is_inside = !is_inside;
+          down_detected = false;
+          up_detected = false;
+        } else if (up_detected) {
+          up_detected = false;
+        } else {
+          up_detected = true;
+        }
+      } else if (map(row, col) == '.') {
+        map(row, col) = is_inside ? 'I' : 'O';
+      } else if (map(row, col) == '|') {
+        is_inside = !is_inside;
       }
     }
   }
+}
 
-  auto push_to_stack = [&map, &visited, &to_visit, &ch](Location const &dst) {
-    if (!visited.contains(dst) && map(dst) == '.') {
-      map(dst) = ch;
-      to_visit.emplace(dst);
+void
+print_map(Map const &map) {
+  for (std::size_t row = 0; row < map.rows(); ++row) {
+    bool all_dot = true;
+    for (u64 col = 0; col < map.cols(); ++col) {
+      if (map(row, col) != '.') {
+        all_dot = false;
+        break;
+      }
     }
-  };
-
-  while (!to_visit.empty()) {
-    Location top = to_visit.top();
-    to_visit.pop();
-
-    if (top.row > 0) {
-      push_to_stack(Location{.row = top.row - 1, .col = top.col});
+    if (all_dot) {
+      continue;
     }
-    if (top.row < map.rows() - 1) {
-      push_to_stack(Location{.row = top.row + 1, .col = top.col});
+    for (std::size_t col = 0; col < map.cols(); ++col) {
+      std::print("{}", map(row, col));
     }
-    if (top.col > 0) {
-      push_to_stack(Location{.row = top.row, .col = top.col - 1});
-    }
-    if (top.col < map.cols() - 1) {
-      push_to_stack(Location{.row = top.row, .col = top.col + 1});
-    }
+    std::println();
   }
+  std::println();
 }
 
 } // namespace

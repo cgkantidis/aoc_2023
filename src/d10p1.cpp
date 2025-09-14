@@ -5,21 +5,22 @@
 #include <ranges>
 #include <unordered_set> // std::unordered_set
 
+using Map = Matrix<char>;
+
 namespace
 {
 void
 tests();
 u64
 get_num_steps_to_farthest_pipe(std::vector<std::string> const &lines);
-std::pair<Location, Matrix<std::unordered_set<Dir>>>
+std::vector<Location>
+get_loop(Location const &start, Map const &map);
+std::pair<Location, Map>
 parse_map(std::vector<std::string> const &lines);
 bool
-advance_path(std::vector<Location> &path,
-             Matrix<std::unordered_set<Dir>> const &map);
+advance_path(std::vector<Location> &path, Map const &map);
 bool
-is_transition_valid(Matrix<std::unordered_set<Dir>> const &map,
-                    Location const &src,
-                    Location const &dst);
+is_transition_valid(Map const &map, Location const &src, Location const &dst);
 } // namespace
 
 int
@@ -79,69 +80,15 @@ tests() {
 u64
 get_num_steps_to_farthest_pipe(std::vector<std::string> const &lines) {
   auto const [start, map] = parse_map(lines);
-  auto row = start.row;
-  auto col = start.col;
-
-  std::vector<std::vector<Location>> paths;
-  for (Dir dir : ALL_DIRS) {
-    std::vector<Location> path{start};
-    switch (dir) {
-    case Dir::UP: {
-      if (row > 0) {
-        Location dst{.row = row - 1, .col = col};
-        if (is_transition_valid(map, start, dst)) {
-          path.emplace_back(dst);
-          paths.emplace_back(path);
-        }
-      }
-      break;
-    }
-    case Dir::DOWN: {
-      if (row < map.rows() - 1) {
-        Location dst{.row = row + 1, .col = col};
-        if (is_transition_valid(map, start, dst)) {
-          path.emplace_back(dst);
-          paths.emplace_back(path);
-        }
-      }
-      break;
-    }
-    case Dir::LEFT: {
-      if (col > 0) {
-        Location dst{.row = row, .col = col - 1};
-        if (is_transition_valid(map, start, dst)) {
-          path.emplace_back(dst);
-          paths.emplace_back(path);
-        }
-      }
-      break;
-    }
-    case Dir::RIGHT: {
-      if (col < map.cols() - 1) {
-        Location dst{.row = row, .col = col + 1};
-        if (is_transition_valid(map, start, dst)) {
-          path.emplace_back(dst);
-          paths.emplace_back(path);
-        }
-      }
-      break;
-    }
-    }
-  }
-  for (auto &path : paths) {
-    while (advance_path(path, map) && path.back() != start) {}
-    if (path.back() == start) {
-      return (path.size() - 1) / 2;
-    }
-  }
-  UNREACHABLE();
+  auto loop_path = get_loop(start, map);
+  return loop_path.size() / 2;
 }
 
-std::pair<Location, Matrix<std::unordered_set<Dir>>>
+std::pair<Location, Map>
 parse_map(std::vector<std::string> const &lines) {
   std::size_t num_rows = lines.size();
   std::size_t num_cols = lines[0].size();
-  Matrix<std::unordered_set<Dir>> map(num_rows, num_cols);
+  Map map(num_rows, num_cols);
   Location start{};
 
   for (auto const &[row_, line] : std::views::enumerate(lines)) {
@@ -149,117 +96,96 @@ parse_map(std::vector<std::string> const &lines) {
       auto row = static_cast<u64>(row_);
       auto col = static_cast<u64>(col_);
 
-      switch (ch) {
-      case '|': {
-        map(row, col) = {Dir::UP, Dir::DOWN};
-        break;
-      }
-      case '-': {
-        map(row, col) = {Dir::LEFT, Dir::RIGHT};
-        break;
-      }
-      case 'L': {
-        map(row, col) = {Dir::UP, Dir::RIGHT};
-        break;
-      }
-      case 'J': {
-        map(row, col) = {Dir::UP, Dir::LEFT};
-        break;
-      }
-      case '7': {
-        map(row, col) = {Dir::DOWN, Dir::LEFT};
-        break;
-      }
-      case 'F': {
-        map(row, col) = {Dir::DOWN, Dir::RIGHT};
-        break;
-      }
-      case '.': {
-        break;
-      }
-      case 'S': {
+      if (ch == 'S') {
         start = {.row = row, .col = col};
-        map(row, col) = ALL_DIRS;
-        break;
       }
-      default: {
-        UNREACHABLE();
-      }
-      }
+      map(row, col) = ch;
     }
   }
 
   return {start, map};
 }
 
+std::vector<Location>
+get_loop(Location const &start, Map const &map) {
+  auto row = start.row;
+  auto col = start.col;
+
+  std::vector<std::vector<Location>> paths;
+  auto add_to_paths = [&map, &start, &paths](Location const &dst) {
+    if (is_transition_valid(map, start, dst)) {
+      paths.emplace_back(std::vector{start, dst});
+    }
+  };
+  if (row > 0) {
+    add_to_paths(Location{.row = row - 1, .col = col});
+  }
+  if (row < map.rows() - 1) {
+    add_to_paths(Location{.row = row + 1, .col = col});
+  }
+  if (col > 0) {
+    add_to_paths(Location{.row = row, .col = col - 1});
+  }
+  if (col < map.cols() - 1) {
+    add_to_paths(Location{.row = row, .col = col + 1});
+  }
+  for (auto &path : paths) {
+    while (advance_path(path, map) && path.back() != start) {}
+    if (path.back() == start) {
+      return path;
+    }
+  }
+  UNREACHABLE();
+}
+
 bool
-advance_path(std::vector<Location> &path,
-             Matrix<std::unordered_set<Dir>> const &map) {
+advance_path(std::vector<Location> &path, Map const &map) {
   auto const src = path.back();
-  auto const &prev = path[path.size() - 2];
+  auto const prv = path[path.size() - 2];
   auto const row = src.row;
   auto const col = src.col;
-  for (Dir dir : ALL_DIRS) {
-    switch (dir) {
-    case Dir::UP: {
-      if (row > 0) {
-        Location dst{.row = row - 1, .col = col};
-        if (dst != prev && is_transition_valid(map, src, dst)) {
-          path.emplace_back(dst);
-          return true;
-        }
-      }
-      break;
+  auto advance_path_int = [&map, &src, &prv, &path](Location const &dst) -> bool {
+    if (dst != prv && is_transition_valid(map, src, dst)) {
+      path.emplace_back(dst);
+      return true;
     }
-    case Dir::DOWN: {
-      if (row < map.rows() - 1) {
-        Location dst{.row = row + 1, .col = col};
-        if (dst != prev && is_transition_valid(map, src, dst)) {
-          path.emplace_back(dst);
-          return true;
-        }
-      }
-      break;
-    }
-    case Dir::LEFT: {
-      if (col > 0) {
-        Location dst{.row = row, .col = col - 1};
-        if (dst != prev && is_transition_valid(map, src, dst)) {
-          path.emplace_back(dst);
-          return true;
-        }
-      }
-      break;
-    }
-    case Dir::RIGHT: {
-      if (col < map.cols() - 1) {
-        Location dst{.row = row, .col = col + 1};
-        if (dst != prev && is_transition_valid(map, src, dst)) {
-          path.emplace_back(dst);
-          return true;
-        }
-      }
-      break;
-    }
-    }
+    return false;
+  };
+  if (row > 0 && advance_path_int(Location{.row = row - 1, .col = col})) {
+    return true;
+  }
+  if (row < map.rows() - 1
+      && advance_path_int(Location{.row = row + 1, .col = col})) {
+    return true;
+  }
+  if (col > 0 && advance_path_int(Location{.row = row, .col = col - 1})) {
+    return true;
+  }
+  if (col < map.cols() - 1
+      && advance_path_int(Location{.row = row, .col = col + 1})) {
+    return true;
   }
   return false;
 }
 
 bool
-is_transition_valid(Matrix<std::unordered_set<Dir>> const &map,
-                    Location const &src,
-                    Location const &dst) {
+is_transition_valid(Map const &map, Location const &src, Location const &dst) {
+  static const std::unordered_set<char> right_chars{'S', '-', 'F', 'L'};
+  static const std::unordered_set<char> left_chars{'S', '-', '7', 'J'};
+  static const std::unordered_set<char> up_chars{'S', '|', 'L', 'J'};
+  static const std::unordered_set<char> down_chars{'S', '|', '7', 'F'};
+
+  char const &src_tile = map(src);
+  char const &dst_tile = map(dst);
   if (src.row == dst.row) {
     if (src.col + 1 == dst.col) {
-      return map(src).contains(Dir::RIGHT) && map(dst).contains(Dir::LEFT);
+      return right_chars.contains(src_tile) && left_chars.contains(dst_tile);
     }
-    return map(src).contains(Dir::LEFT) && map(dst).contains(Dir::RIGHT);
+    return left_chars.contains(src_tile) && right_chars.contains(dst_tile);
   }
   if (src.row + 1 == dst.row) {
-    return map(src).contains(Dir::DOWN) && map(dst).contains(Dir::UP);
+    return down_chars.contains(src_tile) && up_chars.contains(dst_tile);
   }
-  return map(src).contains(Dir::UP) && map(dst).contains(Dir::DOWN);
+  return up_chars.contains(src_tile) && down_chars.contains(dst_tile);
 }
-
 } // namespace
